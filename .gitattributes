@@ -1,0 +1,26 @@
+# Normalize line endings for cross-platform (Windows checkout + WSL build).
+# WSL bash/gcc/make break on CRLF; force LF for all build-critical source.
+* text=auto
+*.sh  text eol=lf
+*.py  text eol=lf
+*.c   text eol=lf
+*.h   text eol=lf
+*.S   text eol=lf
+*.mk  text eol=lf
+*.dts text eol=lf
+*.dtsi text eol=lf
+*.am  text eol=lf
+*.ac  text eol=lf
+*.m4  text eol=lf
+*.xml text eol=lf
+*.inf text eol=lf
+*.cfg text eol=lf
+*.lds text eol=lf
+*.txt text eol=lf
+*.md  text eol=lf
+*.ps1 text eol=lf
+*.cmd text eol=lf
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.vcxproj.filters text eol=crlf
+*.bat text eol=crlf
