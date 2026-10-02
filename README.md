@@ -194,17 +194,17 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 
 ---
 
-## 自用构建产物（NXP i.MX8M Quad EVK / NXPEVK_iMX8M_4GB）
+## 自用构建（NXP i.MX8M Quad EVK / NXPEVK_iMX8M_4GB）
 
-本仓库 public_preview 分支同步自 ms-iot/imx-iotcore（已归档只读）。本分支追加以下**自用**内容（2026-10-02 构建完成，供 Windows 10 IoT Core FFU 打包使用）：
+本仓库 public_preview 分支同步自 ms-iot/imx-iotcore（已归档只读）。本分支追加以下**自用**内容：`vendor/` 上游源码快照与 `scripts/` 一键构建工具（WSL 固件链 + Windows BSP 打包）。**仓库内不携带任何构建产物**——固件与 BSP 包全部由脚本生成到本机（见"产物说明"）。
 
 ```
 imx-iotcore/
-├── artifacts/        固件链最终产物（flash.bin / uefi.fit / tee.bin / bl31.bin / TAs）
-├── bsp-pkg/          BSP 包：17 个 cab + DeviceFM/FileList + OEMInputSamples
-└── scripts/
-    ├── wsl/          WSL Debian 侧固件链构建脚本（bash）
-    └── tools/        Windows 侧打包脚本（PowerShell，需 ADK 17763）
+├── vendor/            上游源码 commit 级 zip 快照（15 个）+ NXP firmware-imx 二进制
+├── scripts/
+│   ├── wsl/           WSL Debian 侧固件链构建脚本（bash，含 reproduce.sh 一键入口）
+│   └── tools/         Windows 侧打包脚本（PowerShell，需 ADK 17763）
+└── build/             上游构建脚本（imx8.mk 等，来自上游仓库）
 ```
 
 ### 快速开始（一次性出结果）
@@ -213,16 +213,15 @@ imx-iotcore/
 
 - WSL Debian 13+（以 root 执行；`sudo` 读管道 stdin 会挂死）
 - 交叉工具链：Linaro gcc 7.2.1 aarch64（`gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu.tar.xz`，解压到 `/opt/fw/toolchain/`）
-- 上游源码快照：见下表，各组件解压到 `/opt/fw/<组件>/`
 - Windows：ADK 17763（`tools\bin\i386\PkgGen.exe`）+ `build_tools\Tools_17704\bin\i386\makecat.exe`
 
-固件链（WSL，root）：
+固件链（WSL，root）——一键从零复现：
 
 ```bash
-wsl -d Debian --user root -- bash scripts/wsl/wsl_build_step.sh imx8_uefi
+wsl -d Debian --user root -- bash scripts/wsl/reproduce.sh /opt/fw
 ```
 
-产物输出于 `/opt/fw/imx-mkimage/iMX8M/flash.bin` 与 `/opt/fw/mu_platform_nxp/Build/MCIMX8M_EVK_4GB/RELEASE_GCC5/FV/uefi.fit`。
+产物输出于 `/opt/fw/imx-mkimage/iMX8M/flash.bin` 与 `/opt/fw/mu_platform_nxp/Build/MCIMX8M_EVK_4GB/RELEASE_GCC5/FV/uefi.fit`（详见"产物说明"）。
 
 BSP 打包（Windows，PowerShell）：
 
@@ -271,12 +270,14 @@ powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 核对 
 | wsl_helloworld_ta2.sh | HelloWorld TA 编译（CROSS_COMPILE_ta_arm64） |
 | wsl_submodule_unpack.sh | 子模块 zip 解压归位 |
 
-### 产物说明（artifacts/ 与 bsp-pkg/）
+### 产物说明（构建生成，不入库）
+
+以下产物全部由 `reproduce.sh` / `pkg_build.ps1` 生成到本机（`/opt/fw/` 与 `D:\BSP-IMX`），**不提交到仓库**：
 
 - `flash.bin`：SPL + ATF bl31 + OP-TEE tee.bin + U-Boot FIT + 签名 HDMI 的合成 BootLoader 镜像。
 - `uefi.fit`：EDK2 全量编译（MU_PLATFORM_NXP MCIMX8M_EVK_4GB RELEASE_GCC5）经 mkimage 打包。
-- `2d57c0f7….ta`（AuthVars）、`bc50d971….ta`（fTPM）、`8aaaf200….ta`（HelloWorld）。
-- `bsp-pkg/`：`NXPEVK_iMX8M_4GB_DeviceFM.xml` 引用的 17 个 cab 已全量生成并交叉核对（17/17），含 BootLoader / BootFirmware / SystemInformation / OEMDevicePlatform / DeviceLayout / SV.PlatExtensions.UpdateOS 与 11 个驱动 cab；`OEMInputSamples` 为 FFU 打包输入。
+- 3 个 TA：`2d57c0f7….ta`（AuthVars）、`bc50d971….ta`（fTPM）、`8aaaf200….ta`（HelloWorld）。
+- BSP 包：`NXPEVK_iMX8M_4GB_DeviceFM.xml` 引用的 17 个 cab + `OEMInputSamples`（FFU 打包输入），输出到 `D:\BSP-IMX`。
 
 ### 许可与限制
 
@@ -318,7 +319,7 @@ vendor/
 
 ### 项目内复现验证（从零出结果）
 
-仓库内不携带任何构建中间产物（artifacts/ 只含最终固件）。**一键复现入口** `scripts/wsl/reproduce.sh` 完成全部动作：vendor 解压 → 源码修补（OP-TEE/MSRSec/mkimage/U-Boot）→ HelloWorld TA → UEFI 环境修补 → 固件全链（optee/tas/mkimage/uefi）→ 产物验证：
+仓库内不携带任何构建产物（固件与 BSP 包全部由脚本生成）。**一键复现入口** `scripts/wsl/reproduce.sh` 完成全部动作：vendor 解压 → 源码修补（OP-TEE/MSRSec/mkimage/U-Boot）→ HelloWorld TA → UEFI 环境修补 → 固件全链（optee/tas/mkimage/uefi）→ 产物验证：
 
 ```bash
 # WSL (root), 工具链先按上文就位
@@ -334,4 +335,4 @@ powershell -ExecutionPolicy Bypass -File scripts\tools\pkg_build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 17/17
 ```
 
-已用本项目 vendor/ 源码 + scripts/ 脚本在全新工作区完成一次全链复现验证：imx8_optee / imx8_tas（3 个 TA）/ imx8_mkimage / imx8_uefi 全部通过，产物与 artifacts/ 字节数一致（flash.bin 1,305,948、uefi.fit 2,065,897，差异仅为内嵌构建时间戳）。
+已用本项目 vendor/ 源码 + scripts/ 脚本在全新工作区完成一次全链复现验证：imx8_optee / imx8_tas（3 个 TA）/ imx8_mkimage / imx8_uefi 全部通过，产物与 2026-10-02 首轮构建记录字节数一致（flash.bin 1,305,948、uefi.fit 2,065,897，差异仅为内嵌构建时间戳）。

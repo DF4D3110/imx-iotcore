@@ -226,3 +226,6 @@ FakesAssemblies/
 # Save the log of currently commited firmware versions
 !build/board/*/*/BootLoader/firmwareversions.log
 !build/board/*/*/BootFirmware/edk2version.log
+# 自用构建产物（本机生成，不入库）
+/artifacts/
+/bsp-pkg/
