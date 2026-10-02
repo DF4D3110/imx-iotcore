@@ -283,3 +283,51 @@ powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 核对 
 - 上游代码按仓库 LICENSE（MIT，另有 imxnetmini / OpteeClientLib 等例外）；NXP 固件二进制（firmware-imx）与第三方（wolfssl、optee_examples）各自许可。
 - 固件与驱动 cab 的正式签名链（EWDK 证书）仍在验证中；UEFI / 驱动签名待确认后再进行 FFU 生成。
 - 本部分为自用归档，不替代 NXP 官方 BSP。
+
+
+---
+
+## 源码与工具集成（vendor/ 与项目内验证）
+
+### vendor/ 源码快照
+
+全部上游源码以 **commit 级 zip 快照** 集成于 `vendor/`（与上表一一对应，共 15 个 zip，约 82 MB），克隆仓库后无需再单独下载源码：
+
+```
+vendor/
+├── u-boot-imx_v2018.03_4.14.98_2.0.0_ga.zip
+├── optee_os-imx_4.14.98_2.0.0_ga.zip
+├── imx-atf-imx_4.14.98_2.0.0_ga.zip
+├── imx-mkimage-imx_4.14.98_2.0.0_ga.zip
+├── MU_PLATFORM_NXP-master.zip
+├── mu_basecore-97b39c0a….zip / mu_plus-6fe8e0ce….zip
+├── mu_silicon_arm_tiano-6c366af7….zip / MU_SILICON_NXP-00ac17fe….zip
+├── mu_tiano_plus-c6a0ad30….zip / mu_oem_sample-bc8add5f….zip
+├── MSRSec-master.zip / ms-tpm-20-ref-fc44e52e….zip / wolfssl-74ebf510….zip
+├── optee_examples-3.3.0.zip
+└── firmware-imx-8.1/          NXP DDR/HDMI 固件二进制 + COPYING（许可证）
+    ├── lpddr4_pmu_train_1d_imem.bin / 1d_dmem.bin / 2d_imem.bin / 2d_dmem.bin
+    └── signed_hdmi_imx8m.bin
+```
+
+### 工具链（不进仓库，README 指引下载）
+
+- Linaro gcc 7.2.1 aarch64：`gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu.tar.xz`（约 118 MB，超过 GitHub 100 MB 单文件限制，不随仓库提交）。
+- 下载后解压到 `/opt/fw/toolchain/`；`scripts/wsl/wsl_toolchain_install.sh` 内含获取与校验步骤，构建脚本启动时会检测工具链是否就位。
+- Windows 打包工具（系统级，不在仓库内）：ADK 17763 `tools\bin\i386\PkgGen.exe` + `build_tools\Tools_17704\bin\i386\makecat.exe`；路径可在 `scripts/tools/pkg_build.ps1` 顶部按本机调整。
+
+### 项目内复现验证（从零出结果）
+
+仓库内不携带任何构建中间产物（artifacts/ 只含最终固件）。复现流程：
+
+```bash
+# 1. 解压 vendor/ 源码到 /opt/fw/<组件>/（scripts/wsl/wsl_submodule_unpack.sh 处理子模块）
+# 2. 跑固件链（WSL, root）——全部修补由脚本自动应用
+wsl -d Debian --user root -- bash scripts/wsl/wsl_build_step.sh imx8_uefi
+#    → /opt/fw/imx-mkimage/iMX8M/flash.bin 与 .../FV/uefi.fit
+# 3. BSP 打包（Windows）
+powershell -ExecutionPolicy Bypass -File scripts\tools\pkg_build.ps1
+powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 17/17
+```
+
+已用本项目 vendor/ 源码 + scripts/ 脚本完成一次全链复现验证（见构建记录），产物与 artifacts/ 一致。
