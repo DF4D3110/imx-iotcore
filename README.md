@@ -190,3 +190,96 @@ For more information about Windows 10 IoT Core, see our online documentation [he
 We are working hard to improve Windows 10 IoT Core and deeply value any feedback we get.
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+
+---
+
+## 自用构建产物（NXP i.MX8M Quad EVK / NXPEVK_iMX8M_4GB）
+
+本仓库 public_preview 分支同步自 ms-iot/imx-iotcore（已归档只读）。本分支追加以下**自用**内容（2026-10-02 构建完成，供 Windows 10 IoT Core FFU 打包使用）：
+
+```
+imx-iotcore/
+├── artifacts/        固件链最终产物（flash.bin / uefi.fit / tee.bin / bl31.bin / TAs）
+├── bsp-pkg/          BSP 包：17 个 cab + DeviceFM/FileList + OEMInputSamples
+└── scripts/
+    ├── wsl/          WSL Debian 侧固件链构建脚本（bash）
+    └── tools/        Windows 侧打包脚本（PowerShell，需 ADK 17763）
+```
+
+### 快速开始（一次性出结果）
+
+环境要求：
+
+- WSL Debian 13+（以 root 执行；`sudo` 读管道 stdin 会挂死）
+- 交叉工具链：Linaro gcc 7.2.1 aarch64（`gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu.tar.xz`，解压到 `/opt/fw/toolchain/`）
+- 上游源码快照：见下表，各组件解压到 `/opt/fw/<组件>/`
+- Windows：ADK 17763（`tools\bin\i386\PkgGen.exe`）+ `build_tools\Tools_17704\bin\i386\makecat.exe`
+
+固件链（WSL，root）：
+
+```bash
+wsl -d Debian --user root -- bash scripts/wsl/wsl_build_step.sh imx8_uefi
+```
+
+产物输出于 `/opt/fw/imx-mkimage/iMX8M/flash.bin` 与 `/opt/fw/mu_platform_nxp/Build/MCIMX8M_EVK_4GB/RELEASE_GCC5/FV/uefi.fit`。
+
+BSP 打包（Windows，PowerShell）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\tools\pkg_build.ps1   # 生成缺失 cab
+powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 核对 FM 引用 17/17
+```
+
+### WSL 使用说明
+
+- 调用范式：`wsl -d Debian --user root -- bash <脚本>.sh`；复杂内联命令会被 PowerShell 转义破坏，一律走 .sh 文件。
+- 离线源码策略：WSL 内访问 GitHub 超时，全部上游源码由本机下载 **commit 级 zip** 后手动解压归位；`wsl_git_init*.sh` 为无 `.git` 的源码建立 git 骨架并令其“有本地改动”，使 MU 构建自动跳过 fetch。
+- 构建工作区约定：全部组件并排在 `/opt/fw/`（u-boot、optee_os、imx-atf、imx-mkimage、mu_platform_nxp、MSRSec、imx-iotcore（仅 build/firmware）、firmware-imx-8.1、optee_examples、toolchain/）。
+
+### 上游源码快照
+
+| 组件 | 快照（zip） | 版本 / commit |
+|---|---|---|
+| u-boot | u-boot-imx_v2018.03_4.14.98_2.0.0_ga.zip | NXP imx_v2018.03_4.14.98_2.0.0_ga |
+| optee_os | optee_os-imx_4.14.98_2.0.0_ga.zip | NXP 4.14.98_2.0.0_ga |
+| imx-atf | imx-atf-imx_4.14.98_2.0.0_ga.zip | NXP 4.14.98_2.0.0_ga |
+| imx-mkimage | imx-mkimage-imx_4.14.98_2.0.0_ga.zip | NXP 4.14.98_2.0.0_ga |
+| MU_PLATFORM_NXP | MU_PLATFORM_NXP-master.zip | ms-iot master（含 git 骨架头 1ef0150） |
+| mu_basecore | mu_basecore-97b39c0a….zip | 97b39c0a8a7fb9d949310f93615835891862f7b0 |
+| mu_plus | mu_plus-6fe8e0ce….zip | 6fe8e0cec25434c9e746e306cda885801a7141bc |
+| mu_silicon_arm_tiano | mu_silicon_arm_tiano-6c366af7….zip | 6c366af7a3772450cb137faa50656f77f204e4b1 |
+| MU_SILICON_NXP | MU_SILICON_NXP-00ac17fe….zip | 00ac17fe5f0ac8558b7f9738efa0b0494fde1261 |
+| mu_tiano_plus | mu_tiano_plus-c6a0ad30….zip | c6a0ad30012bae30fb9bb06e9b3caa975ac631a7 |
+| mu_oem_sample | mu_oem_sample-bc8add5f….zip | bc8add5ffc85943393887349125509583756355c |
+| MSRSec | MSRSec-master.zip | ms-iot master |
+| ms-tpm-20-ref | ms-tpm-20-ref-fc44e52e….zip | fc44e52e2640502ed64699c1cb631c6af69ba53f |
+| wolfssl | wolfssl-74ebf510….zip | 74ebf510a3d73e98767eac26082eabdc84e19d31 |
+| optee_examples | optee_examples-3.3.0.zip | 3.3.0 |
+| firmware-imx | firmware-imx-8.1（外部） | 8.1（lpddr4_pmu_train_*.bin ×4、signed_hdmi_imx8m.bin） |
+
+### 修补说明（scripts/wsl/）
+
+| 脚本 | 作用 |
+|---|---|
+| wsl_build_step.sh | 唯一构建入口（imx8.mk 各目标 + HOSTCFLAGS=-fcommon + PIP_BREAK_SYSTEM_PACKAGES=1） |
+| wsl_fix_hashdiv.sh / wsl_2to3.sh / wsl_crypto_fix.sh | OP-TEE：py2→py3、整除 `/`→`//`、pycryptodome 大写模块名 |
+| wsl_tpm_prep.sh / wsl_wolf_link.sh / wsl_vendor_fix.sh | MSRSec：哨兵补齐、`Wolf`→`wolf` 符号链接、VendorString 填充 |
+| wsl_fix_mkimage_git.sh / wsl_fix_buildinfo.sh | imx-mkimage：git 依赖固定版本、手写 build_info.h |
+| wsl_fix_basetools{1,2,3}.sh / wsl_fix_ucs.sh / wsl_fix_tostring*.sh / wsl_fix_fromstring.sh / wsl_imp_install.sh / wsl_pip_setuptools.sh | Python 3.13 兼容：gcc Wno 系列、ucs-2→utf-16、array tostring/fromstring、imp shim、setuptools<81 |
+| wsl_git_init{1,2,3}.sh | 离线 git 骨架（跳过 fetch） |
+| wsl_helloworld_ta2.sh | HelloWorld TA 编译（CROSS_COMPILE_ta_arm64） |
+| wsl_submodule_unpack.sh | 子模块 zip 解压归位 |
+
+### 产物说明（artifacts/ 与 bsp-pkg/）
+
+- `flash.bin`：SPL + ATF bl31 + OP-TEE tee.bin + U-Boot FIT + 签名 HDMI 的合成 BootLoader 镜像。
+- `uefi.fit`：EDK2 全量编译（MU_PLATFORM_NXP MCIMX8M_EVK_4GB RELEASE_GCC5）经 mkimage 打包。
+- `2d57c0f7….ta`（AuthVars）、`bc50d971….ta`（fTPM）、`8aaaf200….ta`（HelloWorld）。
+- `bsp-pkg/`：`NXPEVK_iMX8M_4GB_DeviceFM.xml` 引用的 17 个 cab 已全量生成并交叉核对（17/17），含 BootLoader / BootFirmware / SystemInformation / OEMDevicePlatform / DeviceLayout / SV.PlatExtensions.UpdateOS 与 11 个驱动 cab；`OEMInputSamples` 为 FFU 打包输入。
+
+### 许可与限制
+
+- 上游代码按仓库 LICENSE（MIT，另有 imxnetmini / OpteeClientLib 等例外）；NXP 固件二进制（firmware-imx）与第三方（wolfssl、optee_examples）各自许可。
+- 固件与驱动 cab 的正式签名链（EWDK 证书）仍在验证中；UEFI / 驱动签名待确认后再进行 FFU 生成。
+- 本部分为自用归档，不替代 NXP 官方 BSP。
