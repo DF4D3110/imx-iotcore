@@ -1,6 +1,7 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
-cd /opt/fw/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python
+cd ${FW_ROOT}/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python
 echo "=== 所有 fromstring 位置 ==="
 grep -rn "\.fromstring(" . 2>/dev/null | grep -v ".bak" | head -20
 echo "=== 替换 ==="

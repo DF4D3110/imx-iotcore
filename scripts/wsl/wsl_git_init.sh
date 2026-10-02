@@ -1,7 +1,8 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
 set -e
-cd /opt/fw/mu_platform_nxp
+cd ${FW_ROOT}/mu_platform_nxp
 echo "=== 初始化根仓库 ==="
 git init -q 2>&1 | head -2 || true
 git config user.email "build@local" 2>/dev/null || true

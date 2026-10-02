@@ -1,6 +1,7 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
-F=/opt/fw/optee_os/scripts/gen_hashed_bin.py
+F=${FW_ROOT}/optee_os/scripts/gen_hashed_bin.py
 cp $F $F.bak
 python3 - "$F" <<'EOF'
 import sys

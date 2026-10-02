@@ -1,6 +1,7 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
-cd /opt/fw/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python
+cd ${FW_ROOT}/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python
 for f in GenFds/GenFdsGlobalVariable.py Eot/EotMain.py; do
   cp $f $f.bak
   sed -i 's/\.tostring()/.tobytes()/g' $f

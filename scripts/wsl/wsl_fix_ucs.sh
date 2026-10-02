@@ -1,6 +1,7 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
-F=/opt/fw/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python/AutoGen/UniClassObject.py
+F=${FW_ROOT}/mu_platform_nxp/MU_BASECORE/BaseTools/Source/Python/AutoGen/UniClassObject.py
 echo "=== ucs-2/ucs-4 出现位置 ==="
 grep -n "ucs-2\|ucs-4" $F
 cp $F $F.bak

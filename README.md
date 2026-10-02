@@ -318,16 +318,20 @@ vendor/
 
 ### 项目内复现验证（从零出结果）
 
-仓库内不携带任何构建中间产物（artifacts/ 只含最终固件）。复现流程：
+仓库内不携带任何构建中间产物（artifacts/ 只含最终固件）。**一键复现入口** `scripts/wsl/reproduce.sh` 完成全部动作：vendor 解压 → 源码修补（OP-TEE/MSRSec/mkimage/U-Boot）→ HelloWorld TA → UEFI 环境修补 → 固件全链（optee/tas/mkimage/uefi）→ 产物验证：
 
 ```bash
-# 1. 解压 vendor/ 源码到 /opt/fw/<组件>/（scripts/wsl/wsl_submodule_unpack.sh 处理子模块）
-# 2. 跑固件链（WSL, root）——全部修补由脚本自动应用
-wsl -d Debian --user root -- bash scripts/wsl/wsl_build_step.sh imx8_uefi
-#    → /opt/fw/imx-mkimage/iMX8M/flash.bin 与 .../FV/uefi.fit
-# 3. BSP 打包（Windows）
+# WSL (root), 工具链先按上文就位
+wsl -d Debian --user root -- bash scripts/wsl/reproduce.sh /opt/fw
+#    → /opt/fw/imx-mkimage/iMX8M/flash.bin 与 .../Build/MCIMX8M_EVK_4GB/RELEASE_GCC5/FV/uefi.fit
+# 各步骤可单独执行: setup_workspace.sh / wsl_fix_*.sh / wsl_build_step.sh <目标>
+```
+
+BSP 打包（Windows，仓库 scripts/tools/）：
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts\tools\pkg_build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\tools\verify_fm.ps1   # 17/17
 ```
 
-已用本项目 vendor/ 源码 + scripts/ 脚本完成一次全链复现验证（见构建记录），产物与 artifacts/ 一致。
+已用本项目 vendor/ 源码 + scripts/ 脚本在全新工作区完成一次全链复现验证：imx8_optee / imx8_tas（3 个 TA）/ imx8_mkimage / imx8_uefi 全部通过，产物与 artifacts/ 字节数一致（flash.bin 1,305,948、uefi.fit 2,065,897，差异仅为内嵌构建时间戳）。

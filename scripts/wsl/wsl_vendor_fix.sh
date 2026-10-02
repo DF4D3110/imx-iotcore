@@ -1,6 +1,7 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
-F=/opt/fw/MSRSec/TAs/optee_ta/fTPM/reference/include/VendorString.h
+F=${FW_ROOT}/MSRSec/TAs/optee_ta/fTPM/reference/include/VendorString.h
 cp $F $F.bak
 python3 - "$F" <<'EOF'
 import sys, re

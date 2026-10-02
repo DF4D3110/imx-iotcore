@@ -1,7 +1,8 @@
 #!/bin/bash
+export FW_ROOT=${FW_ROOT:-/opt/fw}
 export HOME=/root
 set -e
-cd /opt/fw/mu_platform_nxp
+cd ${FW_ROOT}/mu_platform_nxp
 for d in MU_BASECORE Common/MU Common/MU_TIANO Common/MU_OEM_SAMPLE Silicon/ARM/MU_TIANO Silicon/ARM/NXP; do
   (cd "$d" && git config user.email "build@local" 2>/dev/null; git config user.name "build" 2>/dev/null; git add -A -f . 2>/dev/null | head -1; git commit -q -m "snapshot" 2>&1 | head -1 || true)
   echo "committed: $d"
